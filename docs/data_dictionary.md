@@ -35,11 +35,24 @@ PVGIS long-term average output of **1 kWp** with 14 % system losses.
 `scenario` = `optimal` (PVGIS-chosen angles) or `tilt<deg>_<direction>` (Serbian cities only).
 Azimuth: 0 = south, −90 = east, 90 = west.
 
+## mart.fact_solar_estimate_hourly (Serbia)
+| Column | Unit | Description |
+|---|---|---|
+| solar_shape_norm | 0–~1 | predicted output relative to a clear-day peak |
+| capacity_mw | MW | installed solar, interpolated between year-end values (2026 extrapolated) |
+| solar_mwh_est / _low / _high | MWh | central estimate and p25/p75 band |
+
+## mart.v_solar_hourly
+Published solar where it exists, estimate for Serbia (`is_estimated = true`), plus load, price and negative-price flag.
+
+## mart.estimate_validation / v_estimate_validation / estimate_validation_hourly
+Leave-one-country-out metrics (model vs irradiance baseline) and out-of-fold hourly predictions.
+
 ## Dimensions
 `mart.dim_country`, `mart.dim_location` (lat/lon of the weather and PVGIS points), `mart.dim_date` (calendar, season, weekend).
 
 ## Known data issues
-- **Serbia has no hourly solar series** in Energy-Charts (ENTSO-E source). It is estimated in a later step.
+- **Serbia has no hourly solar series** in Energy-Charts (ENTSO-E source). It is estimated, see `fact_solar_estimate_hourly`.
 - Prices switched from hourly to 15-minute resolution in October 2025. The mart averages them back to hourly.
 - Croatia is missing one hour in 2022.
 - Energy-Charts solar figures cover grid-reported generation. Rooftop self-consumption may be partly missing,

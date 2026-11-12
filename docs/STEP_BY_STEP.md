@@ -137,3 +137,51 @@ Serbia's day-ahead price was **never negative from 2020 to 2025**. The first neg
 on 8 days between May and July, always between 08:00 and 16:00. In **79 %** of those 15-minute intervals,
 Hungary's price was negative at the same time. Serbia has very little solar of its own (~0.19 GW), so this suggests
 the negative prices are **imported from neighbouring markets** rather than caused by Serbian solar.
+
+---
+
+## Step 6 — Estimating Serbia's hourly solar output
+
+### In simple words
+Serbia doesn't publish how much electricity its solar panels produce each hour, so we estimated it.
+We taught a model how weather (sunshine, clouds, temperature) turns into solar output, using the four
+neighbours that *do* publish their data. To check that it works, we hid one country at a time, predicted it from
+the other three, and compared the prediction with the real numbers. Then we applied the model to Serbian
+weather and scaled it to the amount of solar installed in Serbia.
+
+### In detail
+- **Code:** `src/estimate/serbia_solar.py` (run with `python -m src.estimate.serbia_solar`, or as part of `src.pipeline`).
+- **Why not just capacity × weather?** The neighbours' reported capacities are year-end snapshots that partly miss
+  rooftop systems. Real output per installed kW ranged from 536 to 1,449 kWh/kW per year, so dividing by reported
+  capacity would mostly add noise.
+- **Shape (how output moves hour by hour):**
+  - Target: each country's solar output ÷ its own *rolling peak* (90th percentile of daily maxima in a 91-day window).
+    This removes the capacity level and keeps only the weather-driven pattern.
+  - Features: irradiance (global, direct, diffuse), temperature, cloud cover, hour of day and day of year (as sin/cos),
+    and irradiance × season (tilted panels gain relatively more in winter).
+  - Model: `HistGradientBoostingRegressor` (scikit-learn).
+- **Validation: leave one country out** (train on 3, predict the 4th, 2020–2025):
+
+  | Metric (mean of 4 held-out countries) | Baseline: normalised irradiance | Model |
+  |---|---|---|
+  | Hourly R² | 0.936 | **0.942** |
+  | Daily error (nMAE) | 14.2 % | **12.9 %** |
+  | Monthly error (WAPE) | 7.6 % | **6.6 %** |
+  | Total bias | +3.5 % | **+0.1 %** |
+
+  The weather → output relationship is mostly captured by irradiance alone. The model's main gain is removing
+  the systematic bias and handling cloudy days a bit better.
+- **Level (how much energy):** `solar_mwh = shape × k × capacity_MW`, where `k` makes one year of output equal
+  *PVGIS yield for Serbia (1,250 kWh/kWp) × realisation ratio*. The realisation ratio (real ÷ PVGIS yield on the neighbours)
+  has p25/p50/p75 = 0.57 / 0.73 / 0.90, which gives the low / central / high estimate (central ≈ 909 kWh/kW).
+- **Capacity:** year-end values interpolated linearly. 2026 has no reported value yet, so the 2025 increment
+  (+0.12 GW) is assumed again (flagged as an assumption).
+- **Result:** Serbian solar ≈ 13 GWh (2023), 47 GWh (2024), 116 GWh (2025, range 92–144) and 216 GWh in 2026 so far.
+  That is well under 1 % of Serbia's ≈ 34 TWh annual demand.
+- **Two bugs found and covered by tests (`tests/test_estimate.py`):** missing early capacity years produced NaN,
+  and database timestamps arriving in microseconds (not nanoseconds) broke the interpolation silently.
+
+### Finding
+During Serbia's negative-price hours in 2026, Serbian solar covered only **≈ 3 %** of demand.
+In Hungary's negative-price hours it was **≈ 78 %**. Serbia's negative prices are imported through the coupled
+regional market. Domestic solar cannot explain them.

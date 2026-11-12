@@ -57,7 +57,7 @@ SELECT c.country_code,
        pr.n_negative_intervals,
        pr.n_intervals                                                  AS n_price_intervals,
        (pr.min_price_eur_mwh < 0)                                      AS has_negative_price,
-       w.ghi_w_m2, w.cloud_cover_pct, w.temp_c
+       w.ghi_w_m2, w.direct_w_m2, w.diffuse_w_m2, w.cloud_cover_pct, w.temp_c
 FROM power_wide pw
 JOIN raw.country c USING (country_code)
 LEFT JOIN staging.price_hourly pr ON pr.bzn = c.bzn AND pr.hour_utc = pw.hour_utc

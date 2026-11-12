@@ -1,4 +1,4 @@
-"""Run the whole pipeline: extract -> load raw -> staging -> marts.
+"""Run the whole pipeline: extract -> load raw -> staging -> marts -> Serbia solar estimate -> views.
 
 Usage:
     python -m src.pipeline              # uses cached raw data where possible
@@ -12,6 +12,7 @@ import time
 
 from src.config import ROOT
 from src.db import run_sql_file
+from src.estimate import serbia_solar
 from src.extract import run as extract
 from src.load import load_postgres
 
@@ -34,6 +35,9 @@ def main() -> None:
     for f in SQL_STEPS:
         log.info("sql: %s", f)
         run_sql_file(ROOT / "sql" / f)
+    log.info("estimate: Serbia solar")
+    serbia_solar.main()
+    run_sql_file(ROOT / "sql" / "04_views.sql")
     log.info("pipeline finished in %.0f s", time.monotonic() - t0)
 
 

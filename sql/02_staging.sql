@@ -72,6 +72,8 @@ DROP TABLE IF EXISTS staging.weather_country_hourly;
 CREATE TABLE staging.weather_country_hourly AS
 SELECT country_code, hour_utc,
        AVG(ghi_w_m2)        AS ghi_w_m2,
+       AVG(dni_horiz_w_m2)  AS direct_w_m2,
+       AVG(dhi_w_m2)        AS diffuse_w_m2,
        AVG(cloud_cover_pct) AS cloud_cover_pct,
        AVG(temp_c)          AS temp_c
 FROM staging.weather_hourly
