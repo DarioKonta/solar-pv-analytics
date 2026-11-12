@@ -1,0 +1,26 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Secrets / local config
+.env
+
+# Data (re-downloadable via the pipeline)
+data/raw/
+data/interim/
+
+# Power BI temp files
+*.pbix.bak
+.pbi/
+**/.pbi/localSettings.json
+**/.pbi/cache.abf
+
+# Editor / OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
