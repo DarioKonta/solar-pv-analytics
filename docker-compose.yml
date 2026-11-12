@@ -1,0 +1,25 @@
+# Local PostgreSQL for the project. Credentials come from .env (see .env.example).
+#   docker compose up -d      start
+#   docker compose down       stop (data is kept in the named volume)
+services:
+  db:
+    image: postgres:17
+    container_name: solar_pv_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${PG_DB}
+      POSTGRES_USER: ${PG_USER}
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+      TZ: UTC
+    ports:
+      - "${PG_PORT}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER} -d ${PG_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  pgdata:

@@ -89,3 +89,22 @@ All settings (countries, cities, dates) live in one file, `config/settings.yaml`
 
 - **Parsers** turn each raw JSON into a tidy pandas DataFrame (long format, UTC timestamps).
   They are unit-tested in `tests/test_extract.py` (`pytest`).
+
+---
+
+## Step 4 — The database (PostgreSQL in Docker)
+
+### In simple words
+The data needs a proper home where it can be cleaned, joined and queried with SQL, and where Power BI
+can read it. We use PostgreSQL, the most popular open-source database, running inside Docker.
+Docker is like a ready-made box with the database preinstalled: one command starts it, and anyone who
+downloads this project gets exactly the same setup.
+
+### In detail
+- `docker-compose.yml` defines one service, `db`, using the `postgres:17` image:
+  - credentials come from `.env` (copy `.env.example` and set a password),
+  - port `5432` is exposed on `localhost`, so Python and Power BI connect as if it were installed locally,
+  - data lives in the named volume `pgdata`, so it survives `docker compose down`,
+  - a health check (`pg_isready`) reports when the database is ready.
+- Start it: `docker compose up -d`. Check it: `docker exec solar_pv_db psql -U postgres -d solar_pv -c "select version();"`.
+- Why Docker instead of a local install: it is reproducible, takes one command, and leaves nothing behind on the machine.

@@ -21,7 +21,7 @@ Hungary, Romania, Croatia and Bulgaria as benchmarks.
 | Layer | Tools |
 |-------|-------|
 | Extract | Python (`requests`), REST APIs with throttling, retry and raw caching |
-| Store / transform | PostgreSQL, SQL (`raw` → `staging` → `mart` layers, CTEs, window functions) |
+| Store / transform | PostgreSQL 17 (Docker), SQL (`raw` → `staging` → `mart` layers, CTEs, window functions) |
 | Analysis | pandas, scikit-learn, Jupyter |
 | Visualisation | Power BI (DAX measures, star schema) |
 | Quality | pytest, SQL data checks |
@@ -46,7 +46,19 @@ tests/         unit tests
 
 ## How to run
 
-_Coming soon._
+Requirements: Python 3.12+, Docker Desktop, Power BI Desktop (for the dashboard).
+
+```powershell
+git clone https://github.com/DarioKonta/solar-pv-analytics.git
+cd solar-pv-analytics
+copy .env.example .env                  # then set PG_PASSWORD
+python -m venv .venv
+.\.venv\Scripts\pip install -r requirements.txt
+docker compose up -d                    # PostgreSQL 17 on localhost:5432
+.\.venv\Scripts\python -m src.extract.run   # download raw data (~30 min, cached)
+```
+
+_Loading, transformation and analysis steps will be added as they are built._
 
 ## Step-by-step guide
 
