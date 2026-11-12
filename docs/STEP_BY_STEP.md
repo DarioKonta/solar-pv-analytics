@@ -108,3 +108,32 @@ downloads this project gets exactly the same setup.
   - a health check (`pg_isready`) reports when the database is ready.
 - Start it: `docker compose up -d`. Check it: `docker exec solar_pv_db psql -U postgres -d solar_pv -c "select version();"`.
 - Why Docker instead of a local install: it is reproducible, takes one command, and leaves nothing behind on the machine.
+
+---
+
+## Step 5 — Loading and shaping the data (raw → staging → mart)
+
+### In simple words
+We moved all the downloaded files into the database in three stages. First, a **raw** copy exactly as received.
+Then a **cleaned** version where everything is on the same hourly clock and power plants are grouped into
+simple categories (solar, wind, hydro, coal…). Finally, a **mart**: tidy tables designed for charts and analysis.
+Keeping the stages separate means any mistake can be traced back, and the whole database can be rebuilt with one command.
+
+### In detail
+- **Run everything:** `python -m src.pipeline` (or `--skip-extract` to rebuild only the database from cached files).
+- **Raw load (`src/load/load_postgres.py`):** each table is truncated and refilled with PostgreSQL `COPY`
+  (≈ 10.7 M generation rows in about 2 minutes). Duplicates on the primary key are dropped first, so reloading is always safe.
+- **Staging (`sql/02_staging.sql`):**
+  - `production_type_map` groups 23 Energy-Charts series into 9 categories. Share and consumption series are excluded.
+  - 15-minute values become hourly. MW averaged over an hour equals the MWh produced in that hour.
+  - Prices become an hourly mean, and the number of negative 15-minute intervals is kept.
+  - Open-Meteo stamps each hour at its **end**, so weather is shifted by −1 h to line up with the energy data, which is stamped at the **start**.
+- **Mart (`sql/03_marts.sql`):** star schema with `fact_country_hourly` (≈ 300 k rows) plus capacity, PV-yield and calendar tables.
+  SQL techniques used: CTEs, conditional aggregation (`FILTER`), window functions (`LAG`), time-zone conversion.
+- **Quality checks:** row counts per year, NULL counts and plausibility of annual totals. See `docs/data_dictionary.md`.
+
+### First finding
+Serbia's day-ahead price was **never negative from 2020 to 2025**. The first negative price came on **10 May 2026**,
+on 8 days between May and July, always between 08:00 and 16:00. In **79 %** of those 15-minute intervals,
+Hungary's price was negative at the same time. Serbia has very little solar of its own (~0.19 GW), so this suggests
+the negative prices are **imported from neighbouring markets** rather than caused by Serbian solar.
