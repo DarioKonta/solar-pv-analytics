@@ -1,0 +1,65 @@
+# Project settings. Change values here, not in code.
+
+date_range:
+  start: "2020-01-01"
+  end: null            # null = today
+
+countries:
+  # code: Energy-Charts country code; bzn: day-ahead price bidding zone
+  - {code: rs, bzn: RS, name: Serbia,   focus: true}
+  - {code: hu, bzn: HU, name: Hungary}
+  - {code: ro, bzn: RO, name: Romania}
+  - {code: hr, bzn: HR, name: Croatia}
+  - {code: bg, bzn: BG, name: Bulgaria}
+
+# Locations for weather (Open-Meteo) and PV yield (PVGIS).
+# Serbian cities answer Q1; the other points describe each country's weather for the solar estimate.
+locations:
+  - {name: Belgrade,     country: rs, lat: 44.787, lon: 20.457}
+  - {name: Novi Sad,     country: rs, lat: 45.267, lon: 19.833}
+  - {name: Nis,          country: rs, lat: 43.321, lon: 21.896}
+  - {name: Kragujevac,   country: rs, lat: 44.012, lon: 20.911}
+  - {name: Subotica,     country: rs, lat: 46.100, lon: 19.667}
+  - {name: Zlatibor,     country: rs, lat: 43.729, lon: 19.700}
+  - {name: Budapest,     country: hu, lat: 47.498, lon: 19.040}
+  - {name: Szeged,       country: hu, lat: 46.253, lon: 20.141}
+  - {name: Debrecen,     country: hu, lat: 47.531, lon: 21.627}
+  - {name: Pecs,         country: hu, lat: 46.072, lon: 18.233}
+  - {name: Bucharest,    country: ro, lat: 44.427, lon: 26.103}
+  - {name: Timisoara,    country: ro, lat: 45.749, lon: 21.227}
+  - {name: Craiova,      country: ro, lat: 44.330, lon: 23.794}
+  - {name: Constanta,    country: ro, lat: 44.173, lon: 28.638}
+  - {name: Zagreb,       country: hr, lat: 45.815, lon: 15.982}
+  - {name: Osijek,       country: hr, lat: 45.554, lon: 18.696}
+  - {name: Split,        country: hr, lat: 43.508, lon: 16.440}
+  - {name: Sofia,        country: bg, lat: 42.698, lon: 23.322}
+  - {name: Plovdiv,      country: bg, lat: 42.135, lon: 24.745}
+  - {name: Varna,        country: bg, lat: 43.214, lon: 27.915}
+
+weather_variables:
+  - shortwave_radiation   # global horizontal irradiance, W/m2 (mean of the preceding hour)
+  - direct_radiation
+  - diffuse_radiation
+  - cloud_cover           # %
+  - temperature_2m        # degC
+
+pvgis:
+  loss_pct: 14            # system losses (cables, inverter, dirt)
+  tilts: [0, 10, 20, 30, 35, 40, 50, 60, 90]
+  azimuths: {south: 0, south_east: -45, south_west: 45, east: -90, west: 90}
+
+# Assumptions for the rooftop payback calculation (Q1). Edit to test scenarios.
+pv_economics:
+  system_kwp: 6
+  capex_eur_per_kwp: 900
+  self_consumption_share: 0.4
+  retail_tariff_eur_per_kwh: 0.10
+  feed_in_eur_per_kwh: 0.05
+  degradation_pct_per_year: 0.5
+  lifetime_years: 25
+
+http:
+  energy_charts_delay_s: 3      # API rate-limits hard
+  default_delay_s: 1
+  max_retries: 6
+  timeout_s: 120

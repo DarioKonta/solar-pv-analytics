@@ -56,3 +56,36 @@ python -m venv .venv
 - `requests` calls the APIs, `pandas` and `numpy` handle tables, and `sqlalchemy` + `psycopg` talk to PostgreSQL.
 - `scikit-learn` is used for the Serbian solar estimate, `matplotlib` and `jupyter` for analysis, and `pytest` for tests.
 - Database credentials live in `.env`, which is never committed. `.env.example` shows the expected variables.
+
+---
+
+## Step 3 — Downloading the data (extract)
+
+### In simple words
+We wrote small Python programs that ask three free websites for data: electricity generation
+and prices (Energy-Charts), how much a solar panel would produce in a given city (PVGIS),
+and historical weather such as sunshine, clouds and temperature (Open-Meteo).
+Every answer is saved to disk, so the data never has to be downloaded twice.
+All settings (countries, cities, dates) live in one file, `config/settings.yaml`.
+
+### In detail
+- **Run:** `python -m src.extract.run` (all sources) or e.g. `python -m src.extract.run pvgis`.
+- **`src/http_client.py`:** one shared client that
+  - waits a fixed time between calls (3 s for Energy-Charts, which answers HTTP 429 when called too fast),
+  - retries on 429/5xx with exponential backoff (and respects `Retry-After`),
+  - caches every response as JSON under `data/raw/<source>/...` and writes it atomically
+    (`.tmp` file, then rename), so an interrupted run never leaves half a file.
+- **Chunking (`src/extract/chunks.py`):** Energy-Charts is requested per quarter and Open-Meteo per year,
+  which keeps responses small. Chunks that touch the last 7 days are re-downloaded, because recent data can still be revised.
+- **What is downloaded:**
+
+  | Source | Endpoint | Granularity | Scope |
+  |---|---|---|---|
+  | Energy-Charts | `/public_power` | hourly (15-min since 2025) | generation by type + load, 5 countries |
+  | Energy-Charts | `/price` | hourly (15-min since Oct 2025) | day-ahead prices, 5 bidding zones |
+  | Energy-Charts | `/installed_power` | yearly | installed capacity by type |
+  | PVGIS | `/PVcalc` | annual + monthly | 20 locations at optimal angles; Serbian cities also on a tilt × direction grid |
+  | Open-Meteo | `/archive` | hourly | irradiance, cloud cover, temperature for 20 locations |
+
+- **Parsers** turn each raw JSON into a tidy pandas DataFrame (long format, UTC timestamps).
+  They are unit-tested in `tests/test_extract.py` (`pytest`).
