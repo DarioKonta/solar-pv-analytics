@@ -42,6 +42,9 @@ Azimuth: 0 = south, −90 = east, 90 = west.
 | capacity_mw | MW | installed solar, interpolated between year-end values (2026 extrapolated) |
 | solar_mwh_est / _low / _high | MWh | central estimate and p25/p75 band |
 
+## mart.estimate_parameters
+PVGIS yield for Serbia, the realisation-ratio percentiles and the resulting central kWh/kW used to scale the estimate.
+
 ## mart.v_solar_hourly
 Published solar where it exists, estimate for Serbia (`is_estimated = true`), plus load, price and negative-price flag.
 
@@ -55,5 +58,8 @@ Leave-one-country-out metrics (model vs irradiance baseline) and out-of-fold hou
 - **Serbia has no hourly solar series** in Energy-Charts (ENTSO-E source). It is estimated, see `fact_solar_estimate_hourly`.
 - Prices switched from hourly to 15-minute resolution in October 2025. The mart averages them back to hourly.
 - Croatia is missing one hour in 2022.
+- **Bulgaria's `Solar` series contains output after sunset from 2025** (3.9 % of 2025 and 10.3 % of 2026 solar,
+  up to 1.4 GW at night), probably co-located storage. It is excluded from model training and flagged in the findings.
+  Check: `sql/analysis/dq_solar_after_dark.sql`.
 - Energy-Charts solar figures cover grid-reported generation. Rooftop self-consumption may be partly missing,
   so yields per installed kW can look low.

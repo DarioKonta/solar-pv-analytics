@@ -26,12 +26,16 @@ from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.metrics import r2_score
 from sqlalchemy import text
 
-from src.db import engine
+from src.config import ROOT
+from src.db import engine, run_sql_file
 
 log = logging.getLogger(__name__)
 
 NEIGHBOURS = ["hu", "ro", "bg", "hr"]
 TRAIN_END_YEAR = 2025          # last year with reported capacity
+# From 2025 Bulgaria's published "Solar" series contains output after sunset (up to ~1.2 GW at 20:00 in June 2026),
+# most likely co-located batteries reported as solar. Those years would teach the model wrong evening behaviour.
+TRAIN_EXCLUDE_FROM = {"bg": "2025-01-01"}
 FEATURES = ["ghi_w_m2", "direct_w_m2", "diffuse_w_m2", "temp_c", "cloud_cover_pct",
             "hour_sin", "hour_cos", "doy_sin", "doy_cos", "ghi_x_doy_cos"]
 
@@ -139,7 +143,8 @@ def realisation_ratios(df: pd.DataFrame, cap: pd.DataFrame) -> pd.Series:
     ).set_index("country_code")["pvgis"]
     out = []
     for c in NEIGHBOURS:
-        g = df[(df.country_code == c) & (df.hour_utc.dt.year <= TRAIN_END_YEAR)]
+        last_year = int(TRAIN_EXCLUDE_FROM[c][:4]) - 1 if c in TRAIN_EXCLUDE_FROM else TRAIN_END_YEAR
+        g = df[(df.country_code == c) & (df.hour_utc.dt.year <= last_year)]
         capmw = capacity_hourly(g["hour_utc"], cap, c)
         yearly = pd.DataFrame({"year": g.hour_utc.dt.year, "mwh": g.solar_mwh, "capmw": capmw}) \
             .groupby("year").agg(mwh=("mwh", "sum"), capmw=("capmw", "mean"))
@@ -157,6 +162,8 @@ def main() -> None:
 
     nb = add_normalised_target(df[df.country_code.isin(NEIGHBOURS)])
     train = nb[(nb.hour_utc.dt.year <= TRAIN_END_YEAR) & nb.y.notna()]
+    for country, start in TRAIN_EXCLUDE_FROM.items():
+        train = train[~((train.country_code == country) & (train.hour_utc >= pd.Timestamp(start, tz="UTC")))]
 
     val, oof = validate(train)
     summary = val.pivot_table(index="metric", columns="method", values="value", aggfunc="mean")
@@ -195,8 +202,16 @@ def main() -> None:
     oof[["country_code", "hour_utc", "y", "pred", "baseline"]] \
         .rename(columns={"y": "actual_norm", "pred": "model_norm", "baseline": "baseline_norm"}) \
         .to_sql("estimate_validation_hourly", eng, schema="mart", index=False, chunksize=10000, method="multi")
+    pd.DataFrame([
+        {"parameter": "pvgis_rs_kwh_per_kwp", "value": pvgis_rs},
+        {"parameter": "realisation_ratio_p25", "value": q25},
+        {"parameter": "realisation_ratio_p50", "value": q50},
+        {"parameter": "realisation_ratio_p75", "value": q75},
+        {"parameter": "rs_kwh_per_kw_central", "value": pvgis_rs * q50},
+    ]).to_sql("estimate_parameters", eng, schema="mart", index=False, if_exists="replace")
     with eng.begin() as conn:
         conn.execute(text("ALTER TABLE mart.fact_solar_estimate_hourly ADD PRIMARY KEY (country_code, hour_utc)"))
+    run_sql_file(ROOT / "sql" / "04_views.sql")   # views were dropped by CASCADE above
     yearly = rs.groupby(rs.hour_utc.dt.year)[["solar_mwh_est", "solar_mwh_low", "solar_mwh_high"]].sum() / 1000
     log.info("Serbia estimated solar, GWh/year:\n%s", yearly.round(0))
 

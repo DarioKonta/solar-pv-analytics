@@ -160,23 +160,26 @@ weather and scaled it to the amount of solar installed in Serbia.
   - Features: irradiance (global, direct, diffuse), temperature, cloud cover, hour of day and day of year (as sin/cos),
     and irradiance × season (tilted panels gain relatively more in winter).
   - Model: `HistGradientBoostingRegressor` (scikit-learn).
-- **Validation: leave one country out** (train on 3, predict the 4th, 2020–2025):
+- **Training data:** 2020–2025, except Bulgaria from 2025 onwards. Its published solar series contains output after sunset
+  (see Step 7, data-quality note), which would teach the model wrong evening behaviour.
+- **Validation: leave one country out** (train on 3, predict the 4th):
 
   | Metric (mean of 4 held-out countries) | Baseline: normalised irradiance | Model |
   |---|---|---|
-  | Hourly R² | 0.936 | **0.942** |
-  | Daily error (nMAE) | 14.2 % | **12.9 %** |
-  | Monthly error (WAPE) | 7.6 % | **6.6 %** |
-  | Total bias | +3.5 % | **+0.1 %** |
+  | Hourly R² | 0.938 | **0.944** |
+  | Daily error (nMAE) | 14.2 % | **13.0 %** |
+  | Monthly error (WAPE) | 7.6 % | **6.7 %** |
+  | Total bias | +3.8 % | **+0.3 %** |
 
   The weather → output relationship is mostly captured by irradiance alone. The model's main gain is removing
   the systematic bias and handling cloudy days a bit better.
 - **Level (how much energy):** `solar_mwh = shape × k × capacity_MW`, where `k` makes one year of output equal
   *PVGIS yield for Serbia (1,250 kWh/kWp) × realisation ratio*. The realisation ratio (real ÷ PVGIS yield on the neighbours)
-  has p25/p50/p75 = 0.57 / 0.73 / 0.90, which gives the low / central / high estimate (central ≈ 909 kWh/kW).
+  has p25/p50/p75 = 0.55 / 0.74 / 0.90, which gives the low / central / high estimate (central ≈ 924 kWh/kW).
+  The parameters are saved in `mart.estimate_parameters`.
 - **Capacity:** year-end values interpolated linearly. 2026 has no reported value yet, so the 2025 increment
   (+0.12 GW) is assumed again (flagged as an assumption).
-- **Result:** Serbian solar ≈ 13 GWh (2023), 47 GWh (2024), 116 GWh (2025, range 92–144) and 216 GWh in 2026 so far.
+- **Result:** Serbian solar ≈ 14 GWh (2023), 48 GWh (2024), 119 GWh (2025, range 89–144) and 220 GWh in 2026 so far.
   That is well under 1 % of Serbia's ≈ 34 TWh annual demand.
 - **Two bugs found and covered by tests (`tests/test_estimate.py`):** missing early capacity years produced NaN,
   and database timestamps arriving in microseconds (not nanoseconds) broke the interpolation silently.
@@ -185,3 +188,34 @@ weather and scaled it to the amount of solar installed in Serbia.
 During Serbia's negative-price hours in 2026, Serbian solar covered only **≈ 3 %** of demand.
 In Hungary's negative-price hours it was **≈ 78 %**. Serbia's negative prices are imported through the coupled
 regional market. Domestic solar cannot explain them.
+
+---
+
+## Step 7 — Answering the questions (analysis SQL + report)
+
+### In simple words
+With clean data in place, we wrote one SQL query per question (13 in total) and a script that turns the
+results into charts and a written report. Before publishing any sentence, we checked it against the numbers.
+That check caught several claims that were slightly off, plus a real problem in Bulgaria's official data.
+
+### In detail
+- **Queries:** `sql/analysis/q1_*.sql` … `q5_*.sql`, plus `dq_solar_after_dark.sql` (data quality). Techniques:
+  window functions (`rank`, `max() over`, `lag`), `FILTER` aggregates, CTEs, conditional joins, `HAVING` for complete days.
+- **Report:** `python -m src.analysis.report` runs every query and writes `reports/findings.md` and 11 charts to `reports/figures/`.
+  Every number in the text is computed, not typed in, so re-running the pipeline updates the story.
+- **Payback model (Q1):** year-by-year cash flow with panel degradation. Assumptions live in `config/settings.yaml`
+  (`pv_economics`), so anyone can test their own price and self-consumption scenario.
+- **Negative-price scenario (Q4):** Hungary's negative prices took off when solar reached ~10 % of annual demand.
+  We translated that share into the solar capacity Serbia would need and asked when Serbia gets there under four growth paths.
+- **Chart rules:** each country keeps one fixed colour in every chart, and Serbia is always blue.
+  There are no dual axes, estimated series are dashed, end labels are nudged so they never overlap,
+  and every chart has a matching table in the report.
+- **Checking the text against the data** caught several mistakes in the first draft (the noon peak for Hungary is 78 %, not ~90 %;
+  "15–50× smaller" was wrong for Croatia; the Serbian midday dip did not deepen *every* year). It also caught two chart bugs:
+  a fake data point from grouping by UTC days, and a misleading drop caused by an incomplete current month.
+
+### Data-quality finding: Bulgaria's solar after sunset
+Solar output should be zero when there is no sunlight. Hungary, Romania and Croatia follow this. Bulgaria, from 2025,
+reports up to **1.4 GW of "solar" at night**, which is 10 % of its 2026 solar total. It most likely comes from batteries
+installed alongside solar parks and reported as solar (an assumption). Bulgaria 2025–26 was removed from
+training the Serbian model, and its recent solar share and capture rate are shown with a caveat.
