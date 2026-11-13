@@ -316,6 +316,7 @@ def q4() -> str:
     f3 = save(fig, "q4_capture_rate", "Capture rate = output-weighted price ÷ time-weighted average price.")
 
     origin = q("q4_rs_negative_origin").iloc[0].astype(float)
+    rs_cap = cap[cap.country_code == "rs"].set_index("year").capture_rate_pct
     pvt = neg.pivot(index="year", columns="country_code", values="negative_hours").rename(columns=COUNTRY_NAME).reset_index()
     capt = cap.pivot(index="year", columns="country_code", values="capture_rate_pct").rename(columns=COUNTRY_NAME) \
         .astype(object).where(lambda x: x.notna(), "–").reset_index()
@@ -376,9 +377,9 @@ At least one neighbour was also negative in **{origin.hours_with_any_neighbour_n
   evening (2020–2022). From 2024 it has been **70–80 % cheaper**.
 - They are **imported**. Serbia's market is coupled to its neighbours, so when the region has a midday solar glut, the
   price in Serbia falls too, even though Serbian solar barely registers.
-- That already hurts Serbian solar investors: the estimated capture rate fell from ~81 % (2023) to ~64 % (2025).
-  A Serbian solar plant earns about a third less per MWh than the average price.
-- Bulgaria's apparent recovery in 2026 (77 %) is probably a data artefact. Its "solar" series now includes
+- That already hurts Serbian solar investors: the estimated capture rate fell from ~{rs_cap[2023]:.0f} % (2023)
+  to ~{rs_cap[2025]:.0f} % (2025). A Serbian solar plant earns about a third less per MWh than the average price.
+- Bulgaria's apparent recovery in 2026 ({cap[(cap.country_code == "bg") & (cap.year == 2026)].capture_rate_pct.iloc[0]:.0f} %) is probably a data artefact. Its "solar" series now includes
   evening output sold at high evening prices (see the data-quality note).
 - Home-grown negative prices need several GW of domestic solar. Serbia's hydro and its role as a regional
   transit country (flexibility, exports) would push that threshold higher still. These scenarios are illustrations, not forecasts.

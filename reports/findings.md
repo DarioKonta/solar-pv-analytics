@@ -146,13 +146,13 @@ Solar capture rate, % of the average price (Serbia = estimated generation profil
 
 |   year |   Bulgaria |   Croatia |   Hungary |   Romania | Serbia   |
 |-------:|-----------:|----------:|----------:|----------:|:---------|
-|   2020 |       92.8 |      89.8 |      88.7 |      89.8 | –        |
-|   2021 |       91.4 |      89.2 |      89.2 |      88.8 | –        |
-|   2022 |       93   |      97.2 |      96.8 |      94.3 | –        |
-|   2023 |       79   |      81.6 |      80.6 |      82.2 | 80.7     |
-|   2024 |       66.1 |      81.1 |      59.8 |      70   | 75.7     |
-|   2025 |       68.6 |      70.8 |      58.1 |      67.6 | 63.4     |
-|   2026 |       77.1 |      69.5 |      57.5 |      74.4 | 63.5     |
+|   2020 |       94.2 |      91.8 |      89.2 |      92.2 | –        |
+|   2021 |       92.8 |      89.6 |      90.5 |      90.3 | –        |
+|   2022 |       95.4 |     103.8 |     102.1 |      99.5 | –        |
+|   2023 |       79.6 |      81.9 |      80.7 |      80.2 | 81.4     |
+|   2024 |       70.8 |      80   |      63.4 |      65.7 | 76.9     |
+|   2025 |       68.6 |      65.9 |      57.7 |      59.6 | 63.0     |
+|   2026 |       77.2 |      66.6 |      58.2 |      63   | 64.7     |
 
 **Are Serbia's negative prices home-grown or imported?** In 2026 Serbia had **42 negative-price hours**.
 In those hours Serbian solar covered only **2.9 %** of demand (estimate).
@@ -175,8 +175,8 @@ At least one neighbour was also negative in **39** of them, and all four were in
   evening (2020–2022). From 2024 it has been **70–80 % cheaper**.
 - They are **imported**. Serbia's market is coupled to its neighbours, so when the region has a midday solar glut, the
   price in Serbia falls too, even though Serbian solar barely registers.
-- That already hurts Serbian solar investors: the estimated capture rate fell from ~81 % (2023) to ~64 % (2025).
-  A Serbian solar plant earns about a third less per MWh than the average price.
+- That already hurts Serbian solar investors: the estimated capture rate fell from ~81 % (2023)
+  to ~63 % (2025). A Serbian solar plant earns about a third less per MWh than the average price.
 - Bulgaria's apparent recovery in 2026 (77 %) is probably a data artefact. Its "solar" series now includes
   evening output sold at high evening prices (see the data-quality note).
 - Home-grown negative prices need several GW of domestic solar. Serbia's hydro and its role as a regional

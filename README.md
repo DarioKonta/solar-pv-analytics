@@ -10,7 +10,7 @@ Hungary, Romania, Croatia and Bulgaria as benchmarks.
    In Serbia's 42 negative-price hours, Serbian solar covered only ~3 % of demand (estimated), while at least one neighbour
    was negative in 39 of them and all four in 35. The coupled regional market passes the neighbours' midday solar glut into Serbian prices.
 2. **The regional solar boom is already reshaping Serbian prices.** Midday power used to be ~20 % cheaper than the evening
-   (2020–2022). Since 2024 it has been 70–80 % cheaper. A Serbian solar plant now earns ~64 % of the average price (estimated capture rate).
+   (2020–2022). Since 2024 it has been 70–80 % cheaper. A Serbian solar plant now earns ~63 % of the average price (estimated capture rate).
 3. **Serbia's solar fleet is tiny but growing fast:** 0.03 → 0.19 GW (2023→2025), 47× smaller than Hungary's.
    Home-grown negative prices would need ≈ 4 GW, which is 2029–2033 under fast growth and decades at today's pace.
 4. **For a rooftop owner, orientation matters ~3× more than city.** Serbian cities are within 7 % of each other
@@ -26,6 +26,13 @@ Hungary, Romania, Croatia and Bulgaria as benchmarks.
 | ![Capacity](reports/figures/q2_capacity.png) | ![June profile](reports/figures/q3_june_profile.png) |
 
 ➡️ **Full analysis with all charts and tables: [reports/findings.md](reports/findings.md)**
+
+## Power BI dashboard
+
+Six pages: overview · Serbia PV potential with a rooftop payback calculator · grid & neighbours · prices & negative hours ·
+Serbia solar estimate · weather. Build guide, DAX measures and theme: [powerbi/](powerbi/README.md).
+
+_Screenshots coming soon._
 
 ## Business questions
 

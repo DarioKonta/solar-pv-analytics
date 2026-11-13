@@ -1,0 +1,170 @@
+// =====================================================================================
+// DAX for the Solar PV Analytics report.
+// Table names assume the renames in powerbi/README.md (step 3):
+//   Hourly, Capacity, PV Yield, Weather Daily, Validation, Country, Date
+// Create a blank table "_Measures" (Enter data -> OK) and add each measure to it.
+// =====================================================================================
+
+
+// ---------- 1. What-if parameter tables (Modeling > New table) -----------------------
+// These drive the rooftop payback calculator on the "Serbia PV Potential" page.
+
+System kWp = GENERATESERIES ( 2, 20, 1 )
+Capex per kWp = GENERATESERIES ( 500, 1500, 50 )
+Self-consumption = GENERATESERIES ( 0, 1, 0.05 )
+Retail Tariff = GENERATESERIES ( 0.05, 0.30, 0.01 )
+Feed-in Tariff = GENERATESERIES ( 0, 0.15, 0.01 )
+
+// Each table has one column called [Value]. Add a single-value slicer per table, then these measures
+// (defaults match config/settings.yaml):
+System kWp Value      = SELECTEDVALUE ( 'System kWp'[Value], 6 )
+Capex per kWp Value   = SELECTEDVALUE ( 'Capex per kWp'[Value], 900 )
+Self-consumption Value= SELECTEDVALUE ( 'Self-consumption'[Value], 0.4 )
+Retail Tariff Value   = SELECTEDVALUE ( 'Retail Tariff'[Value], 0.10 )
+Feed-in Tariff Value  = SELECTEDVALUE ( 'Feed-in Tariff'[Value], 0.05 )
+
+
+// ---------- 2. Energy ------------------------------------------------------------------
+
+Solar MWh = SUM ( Hourly[solar_mwh] )
+
+Solar GWh = DIVIDE ( [Solar MWh], 1000 )
+
+Solar GWh Low = DIVIDE ( SUM ( Hourly[solar_mwh_low] ), 1000 )
+
+Solar GWh High = DIVIDE ( SUM ( Hourly[solar_mwh_high] ), 1000 )
+
+Load TWh = DIVIDE ( SUM ( Hourly[load_mwh] ), 1000000 )
+
+// Share of total demand met by solar in the selected period (energy-weighted)
+Solar % of Load = DIVIDE ( [Solar MWh], SUM ( Hourly[load_mwh] ) )
+
+// Average of hourly shares: use with hour_local on the axis for the daily profile
+Avg Hourly Solar % of Load =
+AVERAGEX ( Hourly, DIVIDE ( Hourly[solar_mwh], Hourly[load_mwh] ) )
+
+// Label for cards/tooltips: is the solar number published or modelled?
+Solar Data Status =
+IF (
+    CALCULATE ( COUNTROWS ( Hourly ), Hourly[is_estimated] = TRUE () ) > 0,
+    "Estimated (model)",
+    "Published"
+)
+
+
+// ---------- 3. Prices ------------------------------------------------------------------
+
+Avg Price = AVERAGE ( Hourly[price_eur_mwh] )
+
+Lowest Price = MIN ( Hourly[min_price_eur_mwh] )
+
+Negative Price Hours =
+CALCULATE ( COUNTROWS ( Hourly ), Hourly[has_negative_price] = TRUE () )
+
+First Negative Price (date) =
+CALCULATE ( MIN ( Hourly[date_local] ), Hourly[has_negative_price] = TRUE () )
+
+// Output-weighted price solar actually earns
+Solar Capture Price =
+DIVIDE ( SUMX ( Hourly, Hourly[solar_mwh] * Hourly[price_eur_mwh] ), [Solar MWh] )
+
+// Capture rate vs the time-weighted average over ALL hours (< 100 % = solar sells at a discount)
+Solar Capture Rate = DIVIDE ( [Solar Capture Price], [Avg Price] )
+
+Midday Price =
+CALCULATE ( [Avg Price], Hourly[hour_local] >= 11, Hourly[hour_local] <= 14 )
+
+Evening Price =
+CALCULATE ( [Avg Price], Hourly[hour_local] >= 18, Hourly[hour_local] <= 21 )
+
+Midday Discount = 1 - DIVIDE ( [Midday Price], [Evening Price] )
+
+// Serbia-only negative hours that coincided with at least one negative neighbour
+RS Negative Hours with Negative Neighbour =
+VAR rsHours =
+    CALCULATETABLE (
+        VALUES ( Hourly[hour_utc] ),
+        Hourly[country_code] = "rs",
+        Hourly[has_negative_price] = TRUE ()
+    )
+RETURN
+    COUNTROWS (
+        FILTER (
+            rsHours,
+            CALCULATE (
+                COUNTROWS ( Hourly ),
+                Hourly[country_code] <> "rs",
+                Hourly[has_negative_price] = TRUE (),
+                REMOVEFILTERS ( Country )
+            ) > 0
+        )
+    )
+
+
+// ---------- 4. Capacity ----------------------------------------------------------------
+
+Installed Solar GW = SUM ( Capacity[solar_gw] )
+
+Installed Solar GW (latest) =
+VAR lastYear = CALCULATE ( MAX ( Capacity[year] ), REMOVEFILTERS ( Capacity[year] ) )
+RETURN CALCULATE ( [Installed Solar GW], Capacity[year] = lastYear )
+
+Capacity Growth % =
+VAR thisYear = MAX ( Capacity[year] )
+VAR prev = CALCULATE ( [Installed Solar GW], Capacity[year] = thisYear - 1 )
+RETURN DIVIDE ( [Installed Solar GW] - prev, prev )
+
+
+// ---------- 5. PV yield & rooftop payback -------------------------------------------
+
+Yield kWh per kWp = AVERAGE ( 'PV Yield'[yield_kwh_per_kwp] )
+
+Optimal Yield kWh per kWp =
+CALCULATE ( [Yield kWh per kWp], 'PV Yield'[scenario] = "optimal" )
+
+% of Optimum =
+DIVIDE (
+    [Yield kWh per kWp],
+    CALCULATE (
+        [Optimal Yield kWh per kWp],
+        REMOVEFILTERS ( 'PV Yield'[orientation], 'PV Yield'[tilt_deg], 'PV Yield'[scenario] )
+    )
+)
+
+Annual Production kWh = [Optimal Yield kWh per kWp] * [System kWp Value]
+
+Value per kWh € =
+[Self-consumption Value] * [Retail Tariff Value]
+    + ( 1 - [Self-consumption Value] ) * [Feed-in Tariff Value]
+
+Annual Savings € = [Annual Production kWh] * [Value per kWh €]
+
+System Cost € = [System kWp Value] * [Capex per kWp Value]
+
+// Simple payback (ignores degradation; the Python report includes 0.5 %/yr degradation)
+Simple Payback (years) = DIVIDE ( [System Cost €], [Annual Savings €] )
+
+
+// ---------- 6. Weather & model validation -------------------------------------------
+
+// Pearson correlation between daily irradiance and daily output
+Irradiance vs Output r =
+VAR T = FILTER ( 'Weather Daily', NOT ISBLANK ( 'Weather Daily'[output_norm] ) )
+VAR mx = AVERAGEX ( T, 'Weather Daily'[ghi_kwh_m2] )
+VAR my = AVERAGEX ( T, 'Weather Daily'[output_norm] )
+VAR cov = SUMX ( T, ( 'Weather Daily'[ghi_kwh_m2] - mx ) * ( 'Weather Daily'[output_norm] - my ) )
+VAR sx = SQRT ( SUMX ( T, ( 'Weather Daily'[ghi_kwh_m2] - mx ) ^ 2 ) )
+VAR sy = SQRT ( SUMX ( T, ( 'Weather Daily'[output_norm] - my ) ^ 2 ) )
+RETURN DIVIDE ( cov, sx * sy )
+
+// Day-to-day variability (coefficient of variation) of daily output
+Daily Output CV =
+VAR T = FILTER ( 'Weather Daily', NOT ISBLANK ( 'Weather Daily'[output_norm] ) )
+RETURN DIVIDE ( STDEVX.S ( T, 'Weather Daily'[output_norm] ), AVERAGEX ( T, 'Weather Daily'[output_norm] ) )
+
+Model Metric = AVERAGE ( Validation[value] )
+
+
+// ---------- 7. Colour helper ------------------------------------------------------------
+// Use in Format > Colors > fx > Field value, so each country keeps its colour in every visual.
+Country Colour = SELECTEDVALUE ( Country[color_hex], "#898781" )

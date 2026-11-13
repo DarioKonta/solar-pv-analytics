@@ -3,7 +3,13 @@
 -- Dimensions -----------------------------------------------------------------------------------
 DROP TABLE IF EXISTS mart.dim_country CASCADE;
 CREATE TABLE mart.dim_country AS
-SELECT country_code, bzn, country_name, is_focus FROM raw.country;
+SELECT country_code, bzn, country_name, is_focus,
+       -- fixed colour per country (same as the report charts) for Power BI conditional formatting
+       CASE country_code WHEN 'rs' THEN '#2a78d6' WHEN 'hu' THEN '#eb6834' WHEN 'ro' THEN '#1baf7a'
+                         WHEN 'hr' THEN '#eda100' WHEN 'bg' THEN '#e87ba4' END AS color_hex,
+       CASE country_code WHEN 'rs' THEN 1 WHEN 'hu' THEN 2 WHEN 'ro' THEN 3
+                         WHEN 'hr' THEN 4 WHEN 'bg' THEN 5 END                AS sort_order
+FROM raw.country;
 ALTER TABLE mart.dim_country ADD PRIMARY KEY (country_code);
 
 DROP TABLE IF EXISTS mart.dim_location CASCADE;

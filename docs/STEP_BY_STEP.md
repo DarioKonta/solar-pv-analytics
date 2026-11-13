@@ -219,3 +219,27 @@ Solar output should be zero when there is no sunlight. Hungary, Romania and Croa
 reports up to **1.4 GW of "solar" at night**, which is 10 % of its 2026 solar total. It most likely comes from batteries
 installed alongside solar parks and reported as solar (an assumption). Bulgaria 2025–26 was removed from
 training the Serbian model, and its recent solar share and capture rate are shown with a caveat.
+
+---
+
+## Step 8 — Power BI dashboard
+
+### In simple words
+The final product for a business audience is an interactive dashboard. We prepared everything Power BI needs: tidy tables in
+the database, every formula (DAX measure), a colour theme that matches the report, and a click-by-click build guide.
+The dashboard has six pages: overview, rooftop potential with a payback calculator, Serbia vs neighbours,
+prices and negative hours, the Serbian solar estimate, and weather.
+
+### In detail
+- **Power BI views (`sql/04_views.sql`, prefix `pbi_`):** flat tables shaped for a star schema. `pbi_hourly` (≈ 300 k rows)
+  already merges published and estimated solar and carries an `is_estimated` flag and a `solar_after_dark` data-quality flag.
+- **Model:** 2 dimensions (`Country`, `Date`, marked as date table) and 5 facts, all one-to-many, single-direction relationships.
+- **Measures (`powerbi/measures.dax`):** capture price and rate (`SUMX` weighted price), midday discount (`CALCULATE` with
+  hour filters), negative hours that coincided with a negative neighbour (`FILTER` over a `CALCULATETABLE` with context
+  transition), Pearson correlation written in DAX, and a rooftop payback calculator driven by five what-if parameter
+  tables (`GENERATESERIES` + `SELECTEDVALUE` with defaults).
+- **Colours:** `Country[color_hex]` plus a `Country Colour` measure for field-value formatting, so each country keeps
+  the same colour as in the Python charts. `powerbi/theme.json` sets the palette and fonts.
+- **Verification:** `powerbi/README.md` lists the values each key card must show, computed independently in SQL.
+- **Bug found while writing the DAX:** the SQL capture-rate query averaged prices over daytime hours only, because a `WHERE`
+  filter meant for solar also removed the night hours from the average price. Fixed (Serbia 2025: 63.0 %, was 63.8 %).
